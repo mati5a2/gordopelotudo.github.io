@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rumbo al Parcial</title>
+    <link rel="icon" href="WhatsApp Image 2026-07-17 at 16.00.58.jpeg" type="image/jpeg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <canvas id="ferrofluid-canvas"></canvas>
+    <div class="app-shell">
+        <div class="page-card">
+
+    <div class="header">
+        <h1 id="page-title">Crear plan de estudio</h1>
+        <p id="page-desc">Crea un plan nuevo y guárdalo para verlo después.</p>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar">0%</div>
+        </div>
+        <p id="progress-text">0 de 0 tareas completadas</p>
+    </div>
+
+    <div class="top-menu-link">
+        <p>Ir al menú de planes para abrir uno existente o crear uno nuevo.</p>
+        <a href="plan-menu.html" class="primary btn-with-icon"><i class="bi bi-list-ul"></i> Abrir menú de planes</a>
+    </div>
+
+    <div class="editor-section highlighted">
+        <h2>Editar plan</h2>
+        <p class="editor-note">Aquí puedes crear o modificar el plan antes de guardarlo.</p>
+        <div class="editor-row">
+            <label>
+                Título del plan
+                <input type="text" id="plan-title-input" placeholder="Nombre de la materia o examen">
+            </label>
+            <label>
+                Descripción
+                <input type="text" id="plan-desc-input" placeholder="Texto corto para tu plan">
+            </label>
+        </div>
+        <div id="editor-days"></div>
+        <div class="editor-actions">
+            <button type="button" id="add-day-btn" class="btn-with-icon"><i class="bi bi-plus-circle"></i> Agregar día</button>
+            <button type="button" id="save-plan-btn" class="secondary btn-with-icon"><i class="bi bi-floppy"></i> Guardar plan</button>
+            <button type="button" id="reset-plan-btn" class="danger btn-with-icon"><i class="bi bi-arrow-counterclockwise"></i> Restablecer plan inicial</button>
+        </div>
+        <div class="view-link-box" id="view-link-box" style="display:none; margin-top:16px;">
+            <a id="view-plan-link" href="#" class="primary btn-with-icon"><i class="bi bi-eye"></i> Ver este plan</a>
+        </div>
+    </div>
+
+    <div id="plan-container"></div>
+
+    <button class="reset btn-with-icon" onclick="resetProgress()"><i class="bi bi-arrow-repeat"></i> Reiniciar todo mi progreso</button>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script src="db-utils.js"></script>
+    <script src="ferrofluid-bg.js"></script>
+    <script>
+        const activeUserKey = 'studyPlannerUser';
+        const currentUser = requireUser();
+        const defaultPlanData = {
+            id: null,
+            title: '',
+            description: '',
+            plan: [
+                {
+                    day: 'Día 1',
+                    date: '',
+                    pdfLink: '',
+                    tasks: [
+                        { id: 'day-1-task-1', text: '' }
+                    ]
+                }
+            ]
+        };
+
+        if (!currentUser) {
+            window.location.href = 'plan-login.html';
+        }
+
+        function getCurrentUser() {
+            const saved = localStorage.getItem(activeUserKey);
+            if (!saved) return null;
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed && parsed.email && parsed.name) return parsed;
+            } catch (error) {
+                console.error('Error leyendo el usuario activo:', error);
+            }
+            return null;
+        }
+
+        function requireUser() {
+            const user = getCurrentUser();
+            if (!user) {
+                window.location.href = 'plan-login.html';
+                return null;
+            }
+            return user;
+        }
+
+        let planData = JSON.parse(JSON.stringify(defaultPlanData));
+        let totalTasks = 0;
+
+        const container = document.getElementById('plan-container');
+        const editorDays = document.getElementById('editor-days');
+        const titleInput = document.getElementById('plan-title-input');
+        const descInput = document.getElementById('plan-desc-input');
+        const viewLinkBox = document.getElementById('view-link-box');
+        const viewPlanLink = document.getElementById('view-plan-link');
+
+        document.getElementById('add-day-btn').addEventListener('click', () => {
+            editorDays.appendChild(createDayEditor({ day: 'Nuevo día', tasks: [{ text: '' }] }));
+        });
+
+        document.getElementById('save-plan-btn').addEventListener('click', savePlanFromEditor);
+        document.getElementById('reset-plan-btn').addEventListener('click', resetPlanConfig);
+
+        async function loadPlanData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const planId = urlParams.get('planId');
+            const newMode = urlParams.get('new');
+
+            if (newMode === '1') {
+                return JSON.parse(JSON.stringify(defaultPlanData));
+            }
+
+            if (planId && currentUser) {
+                const savedPlan = await getPlanById(currentUser.email, planId);
+                if (savedPlan && savedPlan.content) {
+                    return {
+                        id: savedPlan.plan_id,
+                        title: savedPlan.title,
+                        description: savedPlan.description,
+                        plan: savedPlan.content.plan || []
+                    };
+                }
+            }
+
+            return JSON.parse(JSON.stringify(defaultPlanData));
+        }
+
+        async function renderPlan(plan) {
+            if (!currentUser) return;
+            const progressMap = planData?.id ? await getTaskProgressForPlan(currentUser.email, planData.id) : {};
+            container.innerHTML = '';
+            totalTasks = 0;
+
+            (plan || []).forEach(day => {
+                const card = document.createElement('div');
+                card.className = 'day-card';
+
+                const title = document.createElement('h3');
+                title.textContent = day.day;
+                card.appendChild(title);
+
+                if (day.date) {
+                    const dateText = document.createElement('p');
+                    dateText.className = 'day-date';
+                    dateText.textContent = formatDateForDisplay(day.date);
+                    card.appendChild(dateText);
+                }
+
+                if (day.pdfLink) {
+                    const pdfLink = document.createElement('a');
+                    pdfLink.href = day.pdfLink;
+                    pdfLink.target = '_blank';
+                    pdfLink.rel = 'noopener noreferrer';
+                    pdfLink.className = 'pdf-link';
+                    pdfLink.innerHTML = '<i class="bi bi-file-earmark-pdf me-2"></i>Ver material PDF';
+                    card.appendChild(pdfLink);
+                }
+
+                (day.tasks || []).forEach(task => {
+                    totalTasks++;
+
+                    const taskDiv = document.createElement('div');
+                    taskDiv.className = 'task';
+                    taskDiv.id = 'div-' + task.id;
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = task.id;
+                    if (progressMap[task.id]) {
+                        checkbox.checked = true;
+                        taskDiv.classList.add('completed');
+                    }
+
+                    const label = document.createElement('label');
+                    label.htmlFor = task.id;
+                    label.textContent = task.text;
+
+                    checkbox.addEventListener('change', async (e) => {
+                        if (planData && planData.id) {
+                            await setTaskCompletion(currentUser.email, planData.id, task.id, e.target.checked);
+                        }
+                        if (e.target.checked) {
+                            taskDiv.classList.add('completed');
+                        } else {
+                            taskDiv.classList.remove('completed');
+                        }
+                        updateProgress();
+                    });
+
+                    taskDiv.appendChild(checkbox);
+                    taskDiv.appendChild(label);
+                    card.appendChild(taskDiv);
+                });
+
+                container.appendChild(card);
+            });
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            let completed = 0;
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                if (cb.checked) completed++;
+            });
+
+            const percentage = totalTasks === 0 ? 0 : Math.round((completed / totalTasks) * 100);
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = percentage + '%';
+
+            document.getElementById('progress-text').textContent = `${completed} de ${totalTasks} tareas completadas`;
+        }
+
+        async function savePlanFromEditor() {
+            if (!currentUser) return;
+
+            const newTitle = titleInput.value.trim() || 'Mi plan de estudio';
+            const newDesc = descInput.value.trim() || 'Plan de estudio editable desde la página.';
+            const dayCards = Array.from(editorDays.querySelectorAll('.editor-day-card'));
+
+            if (dayCards.length === 0) {
+                alert('Agrega al menos un día para guardar el plan.');
+                return;
+            }
+
+            const newPlan = dayCards.map((dayCard, dayIndex) => {
+                const dayText = dayCard.querySelector('.editor-day-input').value.trim() || `Día ${dayIndex + 1}`;
+                const dateText = normalizeDateValue(dayCard.querySelector('.editor-date-input').value.trim());
+                const pdfLink = dayCard.querySelector('.editor-pdf-input').value.trim();
+                const taskInputs = Array.from(dayCard.querySelectorAll('.editor-task-input'));
+                const tasks = taskInputs
+                    .map((input, taskIndex) => ({
+                        id: `day-${dayIndex + 1}-task-${taskIndex + 1}`,
+                        text: input.value.trim() || `Tarea ${taskIndex + 1}`
+                    }))
+                    .filter(task => task.text.length > 0);
+
+                return {
+                    day: dayText,
+                    date: dateText,
+                    pdfLink,
+                    tasks
+                };
+            }).filter(day => day.tasks.length > 0);
+
+            if (newPlan.length === 0) {
+                alert('Agrega al menos una tarea en algún día para guardar el plan.');
+                return;
+            }
+
+            const planId = planData?.id || `plan-${Date.now()}`;
+            planData = {
+                id: planId,
+                title: newTitle,
+                description: newDesc,
+                plan: newPlan
+            };
+
+            await savePlanForUser(currentUser.email, {
+                id: planData.id,
+                title: planData.title,
+                description: planData.description,
+                plan: planData.plan,
+                savedAt: Date.now()
+            });
+            await setActivePlanId(currentUser.email, planData.id);
+
+            await renderPlan(planData.plan);
+            updateViewLink();
+            alert('Plan guardado. Ahora puedes abrirlo desde el menú.');
+            window.location.href = `plan-view.html?planId=${encodeURIComponent(planData.id)}`;
+        }
+
+        async function resetProgress() {
+            if (!planData || !planData.id || !currentUser) return;
+            if (confirm('¿Estás seguro de que quieres borrar todo tu progreso?')) {
+                await clearTaskProgressForPlan(currentUser.email, planData.id);
+                window.location.reload();
+            }
+        }
+
+        async function resetPlanConfig() {
+            if (!currentUser) return;
+            if (confirm('¿Restablecer el plan inicial y borrar el progreso?')) {
+                if (planData && planData.id) {
+                    await clearTaskProgressForPlan(currentUser.email, planData.id);
+                }
+                planData = JSON.parse(JSON.stringify(defaultPlanData));
+                updateViewLink();
+                initEditor();
+                await renderPlan(planData.plan);
+            }
+        }
+
+        function normalizeDateValue(dateValue) {
+            if (!dateValue) return '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return dateValue;
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateValue)) {
+                const [day, month, year] = dateValue.split('/');
+                return `${year}-${month}-${day}`;
+            }
+            return '';
+        }
+
+        function formatDateForDisplay(dateValue) {
+            if (!dateValue) return '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                const [year, month, day] = dateValue.split('-');
+                return `${day}/${month}/${year}`;
+            }
+            return dateValue;
+        }
+
+        function createTaskInput(taskText = '') {
+            const row = document.createElement('div');
+            row.className = 'editor-task-row';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Describe la tarea';
+            input.value = taskText;
+            input.className = 'editor-task-input';
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'editor-small-btn danger btn-with-icon';
+            removeButton.innerHTML = '<i class="bi bi-trash"></i> Eliminar tarea';
+            removeButton.addEventListener('click', () => row.remove());
+
+            row.appendChild(input);
+            row.appendChild(removeButton);
+            return row;
+        }
+
+        function createDayEditor(day = { day: '', tasks: [{ text: '' }] }) {
+            const dayCard = document.createElement('div');
+            dayCard.className = 'editor-day-card';
+
+            const header = document.createElement('div');
+            header.className = 'editor-day-header';
+
+            const dayInput = document.createElement('input');
+            dayInput.type = 'text';
+            dayInput.placeholder = 'Día, fecha y tema';
+            dayInput.value = day.day;
+            dayInput.className = 'editor-day-input';
+
+            const removeDayButton = document.createElement('button');
+            removeDayButton.type = 'button';
+            removeDayButton.className = 'editor-small-btn danger btn-with-icon';
+            removeDayButton.innerHTML = '<i class="bi bi-x-circle"></i> Eliminar día';
+            removeDayButton.addEventListener('click', () => dayCard.remove());
+
+            header.appendChild(dayInput);
+            header.appendChild(removeDayButton);
+
+            const metadataRow = document.createElement('div');
+            metadataRow.className = 'editor-metadata-row';
+
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.value = normalizeDateValue(day.date || '');
+            dateInput.className = 'editor-date-input';
+            dateInput.setAttribute('lang', 'es');
+
+            const pdfInput = document.createElement('input');
+            pdfInput.type = 'url';
+            pdfInput.placeholder = 'Link del PDF (opcional)';
+            pdfInput.value = day.pdfLink || '';
+            pdfInput.className = 'editor-pdf-input';
+
+            metadataRow.appendChild(dateInput);
+            metadataRow.appendChild(pdfInput);
+
+            const tasksContainer = document.createElement('div');
+            tasksContainer.className = 'editor-tasks-container';
+            (day.tasks || []).forEach(task => {
+                tasksContainer.appendChild(createTaskInput(task.text));
+            });
+
+            const addTaskButton = document.createElement('button');
+            addTaskButton.type = 'button';
+            addTaskButton.className = 'editor-small-btn btn-with-icon';
+            addTaskButton.innerHTML = '<i class="bi bi-plus-circle"></i> Agregar tarea';
+            addTaskButton.addEventListener('click', () => {
+                tasksContainer.appendChild(createTaskInput(''));
+            });
+
+            dayCard.appendChild(header);
+            dayCard.appendChild(metadataRow);
+            dayCard.appendChild(tasksContainer);
+            dayCard.appendChild(addTaskButton);
+            return dayCard;
+        }
+
+        function updateHeader() {
+            document.getElementById('page-title').textContent = 'Crear plan de estudio';
+            document.getElementById('page-desc').textContent = 'Crea un plan nuevo y guárdalo para verlo después.';
+        }
+
+        function updateViewLink() {
+            if (planData && planData.id && planData.id !== 'default-plan') {
+                viewPlanLink.href = `plan-view.html?planId=${encodeURIComponent(planData.id)}`;
+                viewLinkBox.style.display = 'block';
+            } else {
+                viewLinkBox.style.display = 'none';
+            }
+        }
+
+        function initEditor() {
+            titleInput.value = planData.title;
+            descInput.value = planData.description;
+            editorDays.innerHTML = '';
+            (planData.plan || []).forEach(day => {
+                editorDays.appendChild(createDayEditor(day));
+            });
+        }
+
+        async function init() {
+            if (!currentUser) return;
+            planData = await loadPlanData();
+            updateHeader();
+            initEditor();
+            await renderPlan(planData.plan);
+            updateViewLink();
+        }
+
+        init();
+    </script>
+</body>
+</html>
