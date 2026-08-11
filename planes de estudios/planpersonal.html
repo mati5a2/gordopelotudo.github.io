@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprint C++: Rumbo al Parcial</title>
+    <link rel="icon" href="C:\Users\tute3\OneDrive\Documentos\facu\POO\EXAMEN 1\WhatsApp Image 2026-07-17 at 13.52.03.jpeg" type="image/png">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <canvas id="ferrofluid-canvas"></canvas>
+
+    <div class="header">
+        <h1>a estudiar negrito C++ 9 dias (locura)</h1>
+        <p>Tu progreso se guarda automáticamente en tu computadora.</p>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar">0%</div>
+        </div>
+        <p id="progress-text">0 de 0 tareas completadas</p>
+    </div>
+
+    <div class="top-menu-link">
+        <p>Ir al menú de planes para abrir uno existente o crear uno nuevo.</p>
+        <a href="plan-menu.html" class="primary">📑 Abrir menú de planes</a>
+    </div>
+
+    <div class="editor-section highlighted">
+        <h2>Editar plan</h2>
+        <p class="editor-note">Aquí puedes crear o modificar el plan antes de guardarlo.</p>
+        <div class="editor-row">
+            <label>
+                Título del plan
+                <input type="text" id="plan-title-input" placeholder="Nombre de la materia o examen">
+            </label>
+            <label>
+                Descripción
+                <input type="text" id="plan-desc-input" placeholder="Texto corto para tu plan">
+            </label>
+        </div>
+        <div id="editor-days"></div>
+        <div class="editor-actions">
+            <button type="button" id="add-day-btn">➕ Agregar día</button>
+            <button type="button" id="save-plan-btn" class="secondary">💾 Guardar plan</button>
+            <button type="button" id="reset-plan-btn" class="danger">♻️ Restablecer plan inicial</button>
+        </div>
+    </div>
+
+    <div id="plan-container"></div>
+
+    <button class="reset" onclick="resetProgress()">⚠️ Reiniciar todo mi progreso</button>
+
+    <script src="ferrofluid-bg.js"></script>
+    <script>
+        const activePlanKey = 'activeStudyPlan';
+        const plansListKey = 'studyPlansList';
+        const defaultPlanData = {
+            id: 'default-plan',
+            title: "Sprint C++: Rumbo al Parcial",
+            description: "Tu progreso se guarda automáticamente en tu computadora.",
+            plan: [
+                {
+                    day: "Día 1 (viernes 17/7): Lógica y Recursividad",
+                    tasks: [
+                        { id: "d1-t1", text: "Teoría: Leer 02_Recursividad.pdf" },
+                        { id: "d1-t2", text: "Práctica: Terminar practica2.pdf (Vectores, Palíndromos, Pascal)" }
+                    ]
+                },
+                {
+                    day: "Día 2 (sabado 18/7): Memoria Dinámica y Cstrings",
+                    tasks: [
+                        { id: "d2-t1", text: "Teoría: Leer Guia_Punteros.pdf" },
+                        { id: "d2-t2", text: "Práctica: practica3.pdf (Agregar/eliminar elementos de arreglos dinámicos y Cstrings)" }
+                    ]
+                },
+                {
+                    day: "Día 3 (Lunes 20/7): Clases, Objetos y Abstracción",
+                    tasks: [
+                        { id: "d3-t1", text: "Teoría: Leer Clase5.pdf y Programación Orientada a Objetos en C++.pdf" },
+                        { id: "d3-t2", text: "Práctica: practica5.pdf (Ejercicios 1, 2 y 3 - Complejos, Fracciones y Cadena)" }
+                    ]
+                },
+                {
+                    day: "Día 4 (Martes 21/7): Objetos que manejan memoria",
+                    tasks: [
+                        { id: "d4-t1", text: "Práctica: practica5.pdf (Ejercicios 4, 5, 6 y 7 - VectorDinamico, Notas y Billetes)" }
+                    ]
+                },
+                {
+                    day: "Día 5 (Miércoles 22/7): Herencia y Polimorfismo",
+                    tasks: [
+                        { id: "d5-t1", text: "Teoría: Leer poo-herencia.pdf y Polimorfismo.pdf" },
+                        { id: "d5-t2", text: "Práctica: 6-practica.pdf (Ejercicios 2 y 3 - Gastos de empresa y Catálogos - Bases virtuales/Downcasting)" }
+                    ]
+                },
+                {
+                    day: "Día 6 (Jueves 23/7): Diseño Avanzado y Colecciones",
+                    tasks: [
+                        { id: "d6-t1", text: "Práctica: 6-practica.pdf (Ejercicios 1 y 4 - Pila, Cola, Conjunto y Red Social)" }
+                    ]
+                },
+                {
+                    day: "Día 7 (Viernes 24/7): Proyecto Framework HTML",
+                    tasks: [
+                        { id: "d7-t1", text: "Práctica full: tp7.pdf (Jerarquía de etiquetas HTML body, p, img, a imprimidas por consola)" }
+                    ]
+                },
+                {
+                    day: "Día 8 (Sábado 25/7): Entorno Gráfico (Qt Creator)",
+                    tasks: [
+                        { id: "d8-t1", text: "Teoría: Leer qt.pdf (Señales, Slots, QHBoxLayout)" },
+                        { id: "d8-t2", text: "Práctica: Practica (1).pdf (Ejercicios 1 y 2 - Calculadora visual y Agenda de contactos)" }
+                    ]
+                },
+                {
+                    day: "Día 9 (Domingo 26/7): Cierre Gráfico y Repaso",
+                    tasks: [
+                        { id: "d9-t1", text: "Práctica: Terminar Practica (1).pdf (Piedra Papel o Tijera, Cronómetro)" },
+                        { id: "d9-t2", text: "Cierre: Revisión final de código y dudas conceptuales." }
+                    ]
+                }
+            ]
+        };
+
+        let planData = loadPlanData();
+        let savedPlans = loadPlansList();
+        let totalTasks = 0;
+
+        const container = document.getElementById('plan-container');
+        const editorDays = document.getElementById('editor-days');
+        const titleInput = document.getElementById('plan-title-input');
+        const descInput = document.getElementById('plan-desc-input');
+
+        document.getElementById('add-day-btn').addEventListener('click', () => {
+            editorDays.appendChild(createDayEditor({ day: 'Nuevo día', tasks: [{ text: '' }] }));
+        });
+
+        document.getElementById('save-plan-btn').addEventListener('click', savePlanFromEditor);
+        document.getElementById('reset-plan-btn').addEventListener('click', resetPlanConfig);
+
+        function loadPlanData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const planId = urlParams.get('planId');
+            const newMode = urlParams.get('new');
+
+            if (newMode === '1') {
+                return {
+                    id: null,
+                    title: '',
+                    description: '',
+                    plan: [
+                        { day: 'Nuevo día', tasks: [{ text: '' }] }
+                    ]
+                };
+            }
+
+            if (planId) {
+                const plans = loadPlansList();
+                const savedPlan = plans.find(item => item.id === planId);
+                if (savedPlan) {
+                    savePlanData(savedPlan);
+                    return JSON.parse(JSON.stringify(savedPlan));
+                }
+            }
+
+            const saved = localStorage.getItem(activePlanKey);
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (error) {
+                    console.error('Error leyendo el plan activo:', error);
+                }
+            }
+            return JSON.parse(JSON.stringify(defaultPlanData));
+        }
+
+        function loadPlansList() {
+            const saved = localStorage.getItem(plansListKey);
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (error) {
+                    console.error('Error leyendo la lista de planes guardados:', error);
+                }
+            }
+            return [];
+        }
+
+        function savePlanData(data) {
+            localStorage.setItem(activePlanKey, JSON.stringify(data));
+        }
+
+        function savePlansList(plans) {
+            localStorage.setItem(plansListKey, JSON.stringify(plans));
+        }
+
+        function renderPlan(plan) {
+            container.innerHTML = '';
+            totalTasks = 0;
+
+            plan.forEach(day => {
+                const card = document.createElement('div');
+                card.className = 'day-card';
+
+                const title = document.createElement('h3');
+                title.textContent = day.day;
+                card.appendChild(title);
+
+                day.tasks.forEach(task => {
+                    totalTasks++;
+
+                    const taskDiv = document.createElement('div');
+                    taskDiv.className = 'task';
+                    taskDiv.id = 'div-' + task.id;
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = task.id;
+
+                    if (localStorage.getItem(task.id) === 'true') {
+                        checkbox.checked = true;
+                        taskDiv.classList.add('completed');
+                    }
+
+                    checkbox.addEventListener('change', (e) => {
+                        localStorage.setItem(task.id, e.target.checked);
+                        if (e.target.checked) {
+                            taskDiv.classList.add('completed');
+                        } else {
+                            taskDiv.classList.remove('completed');
+                        }
+                        updateProgress();
+                    });
+
+                    const label = document.createElement('label');
+                    label.htmlFor = task.id;
+                    label.textContent = task.text;
+
+                    taskDiv.appendChild(checkbox);
+                    taskDiv.appendChild(label);
+                    card.appendChild(taskDiv);
+                });
+
+                container.appendChild(card);
+            });
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            let completed = 0;
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                if (cb.checked) completed++;
+            });
+
+            const percentage = totalTasks === 0 ? 0 : Math.round((completed / totalTasks) * 100);
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = percentage + '%';
+
+            document.getElementById('progress-text').textContent = `${completed} de ${totalTasks} tareas completadas`;
+        }
+
+        function resetProgress() {
+            if (confirm("¿Estás seguro de que quieres borrar todo tu progreso?")) {
+                Object.keys(localStorage)
+                    .filter(key => key !== activePlanKey && key !== plansListKey)
+                    .forEach(key => localStorage.removeItem(key));
+                window.location.reload();
+            }
+        }
+
+        function resetPlanConfig() {
+            if (confirm("¿Restablecer el plan inicial y borrar el progreso?")) {
+                savePlanData(JSON.parse(JSON.stringify(defaultPlanData)));
+                Object.keys(localStorage)
+                    .filter(key => key !== activePlanKey && key !== plansListKey)
+                    .forEach(key => localStorage.removeItem(key));
+                window.location.reload();
+            }
+        }
+
+        function createTaskInput(taskText = '') {
+            const row = document.createElement('div');
+            row.className = 'editor-task-row';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Describe la tarea';
+            input.value = taskText;
+            input.className = 'editor-task-input';
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'editor-small-btn danger';
+            removeButton.textContent = 'Eliminar tarea';
+            removeButton.addEventListener('click', () => row.remove());
+
+            row.appendChild(input);
+            row.appendChild(removeButton);
+            return row;
+        }
+
+        function createDayEditor(day = { day: '', tasks: [{ text: '' }] }) {
+            const dayCard = document.createElement('div');
+            dayCard.className = 'editor-day-card';
+
+            const header = document.createElement('div');
+            header.className = 'editor-day-header';
+
+            const dayInput = document.createElement('input');
+            dayInput.type = 'text';
+            dayInput.placeholder = 'Día, fecha y tema';
+            dayInput.value = day.day;
+            dayInput.className = 'editor-day-input';
+
+            const removeDayButton = document.createElement('button');
+            removeDayButton.type = 'button';
+            removeDayButton.className = 'editor-small-btn danger';
+            removeDayButton.textContent = 'Eliminar día';
+            removeDayButton.addEventListener('click', () => dayCard.remove());
+
+            header.appendChild(dayInput);
+            header.appendChild(removeDayButton);
+
+            const tasksContainer = document.createElement('div');
+            tasksContainer.className = 'editor-tasks-container';
+            day.tasks.forEach(task => {
+                tasksContainer.appendChild(createTaskInput(task.text));
+            });
+
+            const addTaskButton = document.createElement('button');
+            addTaskButton.type = 'button';
+            addTaskButton.className = 'editor-small-btn';
+            addTaskButton.textContent = '➕ Agregar tarea';
+            addTaskButton.addEventListener('click', () => {
+                tasksContainer.appendChild(createTaskInput(''));
+            });
+
+            dayCard.appendChild(header);
+            dayCard.appendChild(tasksContainer);
+            dayCard.appendChild(addTaskButton);
+            return dayCard;
+        }
+
+        function savePlanFromEditor() {
+            const newTitle = titleInput.value.trim() || 'Mi plan de estudio';
+            const newDesc = descInput.value.trim() || 'Plan de estudio editable desde la página.';
+            const dayCards = Array.from(editorDays.querySelectorAll('.editor-day-card'));
+
+            if (dayCards.length === 0) {
+                alert('Agrega al menos un día para guardar el plan.');
+                return;
+            }
+
+            const newPlan = dayCards.map((dayCard, dayIndex) => {
+                const dayText = dayCard.querySelector('.editor-day-input').value.trim() || `Día ${dayIndex + 1}`;
+                const taskInputs = Array.from(dayCard.querySelectorAll('.editor-task-input'));
+                const tasks = taskInputs
+                    .map((input, taskIndex) => ({
+                        id: `day-${dayIndex + 1}-task-${taskIndex + 1}`,
+                        text: input.value.trim() || `Tarea ${taskIndex + 1}`
+                    }))
+                    .filter(task => task.text.length > 0);
+
+                return { day: dayText, tasks };
+            }).filter(day => day.tasks.length > 0);
+
+            if (newPlan.length === 0) {
+                alert('Agrega al menos una tarea en algún día para guardar el plan.');
+                return;
+            }
+
+            const planId = (planData.id && planData.id !== 'default-plan') ? planData.id : `plan-${Date.now()}`;
+            planData = {
+                id: planId,
+                title: newTitle,
+                description: newDesc,
+                plan: newPlan
+            };
+
+            savePlanData(planData);
+            savedPlans = addOrUpdateSavedPlan(planData);
+            renderPlan(planData.plan);
+            updateHeader();
+            alert('Plan guardado. Ahora puedes usarlo para otra materia.');
+        }
+
+        function addOrUpdateSavedPlan(plan) {
+            const existingIndex = savedPlans.findIndex(item => item.id === plan.id);
+            const planSummary = {
+                id: plan.id,
+                title: plan.title,
+                description: plan.description,
+                savedAt: Date.now(),
+                plan: plan.plan
+            };
+
+            if (existingIndex >= 0) {
+                savedPlans[existingIndex] = planSummary;
+            } else {
+                savedPlans.unshift(planSummary);
+            }
+            savePlansList(savedPlans);
+            return savedPlans;
+        }
+
+        function updateHeader() {
+            document.querySelector('.header h1').textContent = planData.title;
+            document.querySelector('.header p').textContent = planData.description;
+        }
+
+        function initEditor() {
+            titleInput.value = planData.title;
+            descInput.value = planData.description;
+            editorDays.innerHTML = '';
+            planData.plan.forEach(day => {
+                editorDays.appendChild(createDayEditor(day));
+            });
+        }
+
+        function init() {
+            updateHeader();
+            initEditor();
+            renderPlan(planData.plan);
+        }
+
+        init();
+    </script>
+</body>
+</html>
