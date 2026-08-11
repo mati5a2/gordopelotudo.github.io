@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingreso de usuario</title>
+    <link rel="icon" href="WhatsApp Image 2026-07-17 at 16.00.58.jpeg" type="image/jpeg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <canvas id="ferrofluid-canvas"></canvas>
+    <div class="app-shell">
+        <div class="page-card login-card">
+            <div class="header">
+                <h1>    Ingreso de usuario</h1>
+                <p>Ingresa tu nombre y tu correo de Gmail para usar tu menú de planes exclusivo.</p>
+            </div>
+
+            <div class="login-form">
+                <label>
+                    Nombre completo
+                    <input type="text" id="user-name-input" placeholder="Ej. Colo Barco">
+                </label>
+                <label>
+                    Gmail
+                    <input type="email" id="user-email-input" placeholder="BellinghamBoton@gmail.com">
+                </label>
+                <label>
+                    Contraseña
+                    <input type="password" id="user-password-input" placeholder="Contraseña sugerida (coudet quedate porfa)">
+                </label>
+
+                <div class="login-actions">
+                    <button id="register-btn" class="primary btn-with-icon"><i class="bi bi-person-plus"></i> Crear cuenta</button>
+                    <button id="signin-btn" type="button" class="secondary btn-with-icon"><i class="bi bi-box-arrow-in-right"></i> Iniciar sesión</button>
+                </div>
+                <p class="login-note">Cada usuario tendrá su propio menú y sus planes guardados por separado.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script src="db-utils.js"></script>
+    <script src="ferrofluid-bg.js"></script>
+    <script>
+        const activeUserKey = 'studyPlannerUser';
+
+        function getCurrentUser() {
+            const saved = localStorage.getItem(activeUserKey);
+            if (!saved) return null;
+            try {
+                const parsed = JSON.parse(saved);
+                return parsed && parsed.email && parsed.name ? parsed : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        async function redirectIfLoggedIn() {
+            const user = getCurrentUser();
+            if (user) {
+                window.location.href = 'plan-menu.html';
+            }
+        }
+
+        async function registerUser() {
+            const nameInput = document.getElementById('user-name-input');
+            const emailInput = document.getElementById('user-email-input');
+            const passInput = document.getElementById('user-password-input');
+            const name = nameInput.value.trim();
+            const email = emailInput.value.trim().toLowerCase();
+            const password = passInput.value;
+
+            if (!name) {
+                alert('Ingresa tu nombre completo.');
+                nameInput.focus();
+                return;
+            }
+            if (!email || !/^\S+@gmail\.com$/i.test(email)) {
+                alert('Ingresa un correo válido de Gmail.');
+                emailInput.focus();
+                return;
+            }
+            if (!password || password.length < 5) {
+                alert('Ingresa una contraseña con al menos 5 caracteres.');
+                passInput.focus();
+                return;
+            }
+
+            try {
+                await createUser(name, email, password);
+            } catch (error) {
+                if (error.message === 'UserExists') {
+                    alert('El usuario ya existe. Usa iniciar sesión.');
+                    return;
+                }
+                console.error(error);
+                alert('Error al crear el usuario.');
+                return;
+            }
+
+            localStorage.setItem(activeUserKey, JSON.stringify({ name, email }));
+            window.location.href = 'plan-menu.html';
+        }
+
+        async function signinUser() {
+            const emailInput = document.getElementById('user-email-input');
+            const passInput = document.getElementById('user-password-input');
+            const email = emailInput.value.trim().toLowerCase();
+            const password = passInput.value;
+
+            if (!email || !/^\S+@gmail\.com$/i.test(email)) {
+                alert('Ingresa un correo válido de Gmail.');
+                emailInput.focus();
+                return;
+            }
+            if (!password) {
+                alert('Ingresa tu contraseña.');
+                passInput.focus();
+                return;
+            }
+
+            const user = await getUserByEmail(email);
+            if (!user) {
+                alert('Usuario no encontrado. Crea una cuenta primero.');
+                return;
+            }
+            if (user.password !== password) {
+                alert('Contraseña incorrecta.');
+                return;
+            }
+
+            localStorage.setItem(activeUserKey, JSON.stringify({ name: user.name, email: user.email }));
+            window.location.href = 'plan-menu.html';
+        }
+
+        document.getElementById('register-btn').addEventListener('click', registerUser);
+        document.getElementById('signin-btn').addEventListener('click', signinUser);
+
+        redirectIfLoggedIn();
+    </script>
+</body>
+</html>
