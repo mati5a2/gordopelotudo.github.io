@@ -250,12 +250,17 @@
                 const dayText = dayCard.querySelector('.editor-day-input').value.trim() || `Día ${dayIndex + 1}`;
                 const dateText = normalizeDateValue(dayCard.querySelector('.editor-date-input').value.trim());
                 const pdfLink = dayCard.querySelector('.editor-pdf-input').value.trim();
-                const taskInputs = Array.from(dayCard.querySelectorAll('.editor-task-input'));
-                const tasks = taskInputs
-                    .map((input, taskIndex) => ({
-                        id: input.dataset.taskId || `day-${dayIndex + 1}-task-${taskIndex + 1}`,
-                        text: input.value.trim() || `Tarea ${taskIndex + 1}`
-                    }))
+                const taskRows = Array.from(dayCard.querySelectorAll('.editor-task-row'));
+                const tasks = taskRows
+                    .map((row, taskIndex) => {
+                        const input = row.querySelector('.editor-task-input');
+                        const linkInput = row.querySelector('.editor-task-link-input');
+                        return {
+                            id: input.dataset.taskId || `day-${dayIndex + 1}-task-${taskIndex + 1}`,
+                            text: input.value.trim() || `Tarea ${taskIndex + 1}`,
+                            link: linkInput?.value.trim() || ''
+                        };
+                    })
                     .filter(task => task.text.length > 0);
 
                 return {
@@ -334,7 +339,7 @@
             return dateValue;
         }
 
-        function createTaskInput(taskText = '', taskId = null) {
+        function createTaskInput(taskText = '', taskId = null, taskLink = '') {
             const row = document.createElement('div');
             row.className = 'editor-task-row';
 
@@ -346,6 +351,15 @@
             if (taskId) {
                 input.dataset.taskId = taskId;
             }
+            if (taskLink) {
+                input.dataset.taskLink = taskLink;
+            }
+
+            const linkInput = document.createElement('input');
+            linkInput.type = 'url';
+            linkInput.placeholder = 'Link del recurso (PDF, Word, imagen, video)';
+            linkInput.value = taskLink;
+            linkInput.className = 'editor-task-link-input';
 
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
@@ -354,6 +368,7 @@
             removeButton.addEventListener('click', () => row.remove());
 
             row.appendChild(input);
+            row.appendChild(linkInput);
             row.appendChild(removeButton);
             return row;
         }
@@ -391,7 +406,7 @@
 
             const pdfInput = document.createElement('input');
             pdfInput.type = 'url';
-            pdfInput.placeholder = 'Link del PDF (opcional)';
+            pdfInput.placeholder = 'Link del recurso del día (PDF, Word, imagen, video)';
             pdfInput.value = day.pdfLink || '';
             pdfInput.className = 'editor-pdf-input';
 
@@ -401,7 +416,7 @@
             const tasksContainer = document.createElement('div');
             tasksContainer.className = 'editor-tasks-container';
             (day.tasks || []).forEach(task => {
-                tasksContainer.appendChild(createTaskInput(task.text, task.id));
+                tasksContainer.appendChild(createTaskInput(task.text, task.id, task.link || ''));
             });
 
             const addTaskButton = document.createElement('button');

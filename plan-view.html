@@ -191,6 +191,17 @@
 
                     taskDiv.appendChild(checkbox);
                     taskDiv.appendChild(label);
+
+                    if (task.link) {
+                        const resourceLink = document.createElement('a');
+                        resourceLink.href = task.link;
+                        resourceLink.target = '_blank';
+                        resourceLink.rel = 'noopener noreferrer';
+                        resourceLink.className = 'task-resource-link';
+                        resourceLink.textContent = 'Ver recurso';
+                        taskDiv.appendChild(resourceLink);
+                    }
+
                     card.appendChild(taskDiv);
                 });
 
