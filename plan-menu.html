@@ -59,7 +59,7 @@
         function requireUser() {
             const user = getCurrentUser();
             if (!user) {
-                window.location.href = 'plan-login.html';
+                window.location.href = 'index.html';
                 return null;
             }
             return user;
@@ -67,7 +67,7 @@
 
         function logout() {
             localStorage.removeItem(activeUserKey);
-            window.location.href = 'plan-login.html';
+            window.location.href = 'index.html';
         }
 
         function renderUserInfo() {
@@ -102,6 +102,11 @@
                 openButton.className = 'editor-small-btn primary btn-with-icon';
                 openButton.innerHTML = '<i class="bi bi-box-arrow-up-right"></i> Abrir';
 
+                const editButton = document.createElement('a');
+                editButton.href = `plan-create.html?planId=${encodeURIComponent(plan.plan_id)}`;
+                editButton.className = 'editor-small-btn secondary btn-with-icon';
+                editButton.innerHTML = '<i class="bi bi-pencil"></i> Editar';
+
                 const deleteButton = document.createElement('button');
                 deleteButton.type = 'button';
                 deleteButton.className = 'editor-small-btn danger btn-with-icon';
@@ -109,6 +114,7 @@
                 deleteButton.addEventListener('click', () => deleteSavedPlan(plan.plan_id));
 
                 actions.appendChild(openButton);
+                actions.appendChild(editButton);
                 actions.appendChild(deleteButton);
 
                 item.appendChild(title);

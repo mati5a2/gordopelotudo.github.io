@@ -25,6 +25,7 @@
         <p>Ir al menú de planes o crear uno nuevo.</p>
         <div class="view-links-row">
             <a href="plan-menu.html" class="primary btn-with-icon"><i class="bi bi-list-ul"></i> Menú de planes</a>
+            <a id="edit-plan-link" href="#" class="secondary btn-with-icon" style="display:none;"><i class="bi bi-pencil"></i> Editar plan</a>
             <a href="plan-create.html?new=1" class="secondary btn-with-icon"><i class="bi bi-plus-circle"></i> Crear plan</a>
         </div>
     </div>
@@ -64,7 +65,7 @@
         function requireUser() {
             const user = getCurrentUser();
             if (!user) {
-                window.location.href = 'plan-login.html';
+                window.location.href = 'index.html';
                 return null;
             }
             return user;
@@ -72,13 +73,23 @@
 
         function logout() {
             localStorage.removeItem(activeUserKey);
-            window.location.href = 'plan-login.html';
+            window.location.href = 'index.html';
         }
 
         let planData = null;
         let totalTasks = 0;
 
         const container = document.getElementById('plan-container');
+        const editPlanLink = document.getElementById('edit-plan-link');
+
+        function updateEditLink() {
+            if (planData && planData.id && planData.id !== 'default-plan') {
+                editPlanLink.href = `plan-create.html?planId=${encodeURIComponent(planData.id)}`;
+                editPlanLink.style.display = 'inline-flex';
+            } else {
+                editPlanLink.style.display = 'none';
+            }
+        }
 
         async function loadPlanData() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -117,9 +128,9 @@
         }
 
         async function renderPlan(plan) {
-            document.querySelector('.header h1').textContent = plan.title || 'Ver plan';
-            document.querySelector('.header p').textContent = plan.description || 'Revisa las tareas del plan guardado.';
-            const progressMap = plan.id ? await getTaskProgressForPlan(currentUser.email, plan.id) : {};
+            document.querySelector('.header h1').textContent = planData?.title || 'Ver plan';
+            document.querySelector('.header p').textContent = planData?.description || 'Revisa las tareas del plan guardado.';
+            const progressMap = planData?.id ? await getTaskProgressForPlan(currentUser.email, planData.id) : {};
             container.innerHTML = '';
             totalTasks = 0;
 
@@ -213,6 +224,7 @@
 
         async function init() {
             planData = await loadPlanData();
+            updateEditLink();
             await renderPlan(planData.plan);
         }
 
