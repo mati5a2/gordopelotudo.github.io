@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuarios registrados</title>
+    <link rel="icon" href="WhatsApp Image 2026-07-17 at 16.00.58.jpeg" type="image/jpeg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <canvas id="ferrofluid-canvas"></canvas>
+
+    <div class="app-shell">
+        <div class="page-card admin-card">
+            <div class="header">
+                <h1>Usuarios registrados</h1>
+                <p>Resumen de todas las cuentas creadas y cuántos planes tiene cada usuario.</p>
+                <div class="user-meta">
+                    <a href="plan-menu.html" class="secondary btn-with-icon"><i class="bi bi-arrow-left"></i> Volver al menú</a>
+                </div>
+            </div>
+
+            <div class="admin-summary">
+                <div class="summary-item">
+                    <span>Total de cuentas</span>
+                    <strong id="total-users">0</strong>
+                </div>
+                <div class="summary-item">
+                    <span>Total de planes</span>
+                    <strong id="total-plans">0</strong>
+                </div>
+            </div>
+
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Correo</th>
+                            <th>Planes creados</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script src="db-utils.js"></script>
+    <script src="ferrofluid-bg.js"></script>
+    <script>
+        const ADMIN_PASSWORD = 'cambiame_por_una_clave_privada';
+        const ADMIN_STORAGE_KEY = 'studyPlannerAdminAuth';
+
+        function isValidAccess() {
+            const urlPassword = new URLSearchParams(window.location.search).get('admin');
+            const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
+            return urlPassword === ADMIN_PASSWORD || saved === ADMIN_PASSWORD;
+        }
+
+        function grantAccess() {
+            localStorage.setItem(ADMIN_STORAGE_KEY, ADMIN_PASSWORD);
+            window.location.reload();
+        }
+
+        function showGate() {
+            const page = document.querySelector('.admin-card');
+            page.innerHTML = `
+                <div class="header">
+                    <h1>Acceso restringido</h1>
+                    <p>Esta vista solo es para el administrador del sitio.</p>
+                </div>
+                <div class="error-content">
+                    <div class="error-code-wrap">
+                        <span class="error-code"><i class="bi bi-shield-lock"></i></span>
+                    </div>
+                    <div class="error-copy">
+                        <h2>Ingresá la clave</h2>
+                        <p>Usá la misma clave que hayas configurado en el código de esta página.</p>
+                    </div>
+                    <div class="error-actions" style="display: grid; width: min(100%, 320px);">
+                        <input id="admin-password-input" type="password" placeholder="Clave privada" style="padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(5,12,24,0.86); color: white; width: 100%;">
+                        <button id="admin-enter-btn" class="primary btn-with-icon" type="button"><i class="bi bi-box-arrow-in-right"></i> Entrar</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('admin-enter-btn').addEventListener('click', () => {
+                const value = document.getElementById('admin-password-input').value.trim();
+                if (value === ADMIN_PASSWORD) {
+                    grantAccess();
+                    return;
+                }
+                alert('Clave incorrecta.');
+            });
+        }
+
+        if (!isValidAccess()) {
+            showGate();
+        } else {
+            async function renderUsersSummary() {
+                const users = await getAllUsers();
+                const plans = await getAllPlans();
+                const planCounter = {};
+
+                plans.forEach(plan => {
+                    const email = (plan.user_email || '').trim().toLowerCase();
+                    if (!email) return;
+                    planCounter[email] = (planCounter[email] || 0) + 1;
+                });
+
+                const tbody = document.getElementById('users-table-body');
+                tbody.innerHTML = '';
+
+                if (!users.length) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="empty-admin">Todavía no hay cuentas registradas.</td></tr>';
+                    document.getElementById('total-users').textContent = '0';
+                    document.getElementById('total-plans').textContent = '0';
+                    return;
+                }
+
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    const email = (user.email || '').trim().toLowerCase();
+                    const planCount = planCounter[email] || 0;
+
+                    row.innerHTML = `
+                        <td>${user.name || 'Sin nombre'}</td>
+                        <td>${email || 'Sin correo'}</td>
+                        <td>${planCount}</td>
+                    `;
+
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById('total-users').textContent = String(users.length);
+                document.getElementById('total-plans').textContent = String(plans.length);
+            }
+
+            renderUsersSummary();
+        }
+    </script>
+</body>
+</html>
